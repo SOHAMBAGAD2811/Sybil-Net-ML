@@ -5,3 +5,4 @@ requests
 matplotlib
 pyvis
 scipy
+python-dotenv
