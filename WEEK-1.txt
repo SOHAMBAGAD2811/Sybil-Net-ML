@@ -1,0 +1,506 @@
+Product Requirements Document (PRD)
+Sybil-Net
+Week 1 – Graph Data Pipeline & Network Topology Foundation
+
+Project: Sybil-Net – Graph Neural Network Based Decentralized Reputation Protocol
+
+Sprint: Week 1
+
+Duration: 7 Days
+
+Objective
+
+Establish the complete data foundation required for Graph Neural Network training by collecting blockchain transaction data, transforming it into graph structures, engineering initial graph features, and building visualization tools for inspecting the network.
+
+At the end of Week 1, the project should be capable of converting raw blockchain transactions into a graph that represents wallet interactions and allows exploratory analysis of potential Sybil clusters.
+
+1. Problem Statement
+
+Traditional bot detection relies heavily on text analysis or behavioral heuristics, which are increasingly ineffective against modern AI-generated activity.
+
+Instead of analyzing user-generated content, Sybil-Net identifies malicious actors through blockchain interaction topology.
+
+The first step toward achieving this is creating an accurate representation of blockchain activity as a graph.
+
+2. Week 1 Goals
+
+By the end of Week 1 the system should:
+
+Fetch blockchain transaction data
+Convert transactions into graph structures
+Store graph efficiently
+Compute basic graph statistics
+Visualize wallet interactions
+Prepare datasets for GNN training
+
+No machine learning model will be trained this week.
+
+3. Scope
+Included
+
+Blockchain data collection
+
+Wallet interaction graph generation
+
+Feature engineering
+
+Graph database/schema
+
+Visualization prototype
+
+Dataset preprocessing
+
+Documentation
+
+Excluded
+
+Graph Neural Network training
+
+Smart contracts
+
+Wallet staking
+
+zk-SNARKs
+
+Cross-chain analysis
+
+Mempool monitoring
+
+Frontend dashboard
+
+Credential issuance
+
+4. Functional Requirements
+FR-1 Blockchain Data Collection
+
+The backend shall fetch transaction data from a public blockchain.
+
+Initial chain:
+
+Ethereum Mainnet
+
+Possible APIs:
+
+Etherscan API
+Alchemy API
+Infura
+QuickNode
+
+Collected information:
+
+Sender Address
+Receiver Address
+Transaction Hash
+Block Number
+Timestamp
+Value
+Gas Used
+Gas Price
+
+Deliverable:
+
+Raw transaction dataset stored locally.
+
+FR-2 Graph Construction
+
+Convert transaction data into a directed weighted graph.
+
+Nodes
+
+Wallet addresses
+
+Edges
+
+Transactions
+
+Edge Attributes
+
+Transaction count
+
+Transferred amount
+
+Timestamp
+
+Gas
+
+Interaction frequency
+
+Example
+
+Wallet A → Wallet B
+
+Weight = Number of transfers
+
+FR-3 Graph Storage
+
+The graph must support efficient querying.
+
+Recommended options
+
+NetworkX
+
+or
+
+Neo4j
+
+Initial implementation:
+
+NetworkX
+
+Future migration:
+
+Neo4j
+
+FR-4 Feature Engineering
+
+Generate node-level features.
+
+Initial features include:
+
+In-degree
+
+Out-degree
+
+Total transaction count
+
+Unique interaction count
+
+Average transferred amount
+
+Average gas
+
+Transaction frequency
+
+Node age
+
+Reciprocity
+
+Clustering coefficient
+
+Betweenness centrality
+
+Pagerank score
+
+These will later become node features for the Graph Neural Network.
+
+FR-5 Dataset Export
+
+Generate datasets compatible with PyTorch Geometric.
+
+Required outputs
+
+nodes.csv
+
+edges.csv
+
+features.csv
+
+graph.pkl
+
+FR-6 Graph Visualization
+
+Develop a basic visualization tool.
+
+Technology
+
+Python
+
+or
+
+NetworkX + Matplotlib
+
+or
+
+PyVis
+
+Capabilities
+
+Zoom
+
+Pan
+
+Hover node information
+
+Highlight connected wallets
+
+Display node degree
+
+No frontend integration required.
+
+5. Non-Functional Requirements
+Performance
+
+Process 50,000 transactions within five minutes.
+
+Memory usage below 4 GB.
+
+Scalability
+
+Architecture should support millions of nodes later.
+
+Reliability
+
+Duplicate transactions must be ignored.
+
+Missing API responses must be handled gracefully.
+
+Maintainability
+
+Separate modules:
+
+data/
+
+graph/
+
+features/
+
+utils/
+
+config/
+
+visualization/
+6. Technical Stack
+
+Backend
+
+Python 3.12
+
+Libraries
+
+NetworkX
+
+Pandas
+
+NumPy
+
+Requests
+
+PyTorch Geometric (installation only)
+
+Matplotlib
+
+PyVis
+
+Storage
+
+CSV
+
+Pickle
+
+SQLite (optional)
+
+Version Control
+
+Git
+
+GitHub
+
+7. Directory Structure
+Sybil-Net/
+
+│
+
+├── data/
+
+│   ├── raw/
+
+│   ├── processed/
+
+│
+
+├── graph/
+
+│
+
+├── features/
+
+│
+
+├── notebooks/
+
+│
+
+├── visualization/
+
+│
+
+├── models/
+
+│
+
+├── utils/
+
+│
+
+├── config/
+
+│
+
+├── docs/
+
+│
+
+└── README.md
+8. User Stories
+Story 1
+
+As a researcher,
+
+I want to download blockchain transactions,
+
+so that I can analyze wallet interactions.
+
+Story 2
+
+As an ML engineer,
+
+I want blockchain data converted into graphs,
+
+so that I can train a Graph Neural Network later.
+
+Story 3
+
+As a developer,
+
+I want node features automatically generated,
+
+so that model training becomes straightforward.
+
+Story 4
+
+As a project evaluator,
+
+I want to visualize the interaction graph,
+
+so that suspicious wallet clusters are easy to inspect.
+
+9. Acceptance Criteria
+
+✓ Blockchain data successfully downloaded.
+
+✓ Directed graph generated.
+
+✓ Nodes and edges correctly stored.
+
+✓ Feature engineering completed.
+
+✓ Graph statistics generated.
+
+✓ Visualization displays correctly.
+
+✓ Dataset exported for GNN frameworks.
+
+10. Deliverables
+
+Python data ingestion pipeline
+
+Graph construction module
+
+Feature extraction module
+
+Dataset export scripts
+
+Visualization prototype
+
+Technical documentation
+
+GitHub repository initialized
+
+11. Risks
+
+API rate limits
+
+Incomplete blockchain data
+
+Large graph memory consumption
+
+No labeled Sybil datasets yet
+
+Visualization performance on dense graphs
+
+12. Success Metrics
+Metric	Target
+Transactions collected	≥50,000
+Wallet nodes created	≥5,000
+Edges generated	≥20,000
+Feature vectors generated	100%
+Duplicate transactions	0
+Dataset export	Successful
+Visualization	Interactive
+13. Week 1 Timeline
+Day 1
+
+Project setup
+
+Repository creation
+
+Folder structure
+
+Environment setup
+
+API selection
+
+Day 2
+
+Blockchain data collector
+
+Transaction parser
+
+CSV export
+
+Day 3
+
+Graph generation
+
+Directed graph construction
+
+Edge weighting
+
+Day 4
+
+Feature engineering
+
+Degree metrics
+
+Centrality calculations
+
+Interaction statistics
+
+Day 5
+
+Dataset preprocessing
+
+PyTorch Geometric compatibility
+
+Data validation
+
+Day 6
+
+Visualization prototype
+
+Interactive graph inspection
+
+Graph statistics dashboard
+
+Day 7
+
+Testing
+
+Documentation
+
+Bug fixes
+
+Sprint review
+
+Week 2 planning
+
+Definition of Done
+
+Week 1 is considered complete when:
+
+Blockchain transaction data is successfully ingested.
+Wallet interactions are represented as a graph.
+Node features are generated for every wallet.
+Graph datasets are exportable for GNN training.
+Developers can inspect the graph visually.
+The repository contains clear documentation enabling any contributor to continue with Week 2 GNN model development.
