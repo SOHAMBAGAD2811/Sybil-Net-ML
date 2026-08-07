@@ -1,206 +1,378 @@
 import os
 import sys
 import pickle
-import json
+import re
 import networkx as nx
+from pyvis.network import Network
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import PROCESSED_DATA_PATH
 
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sybil-Net Graph Explorer</title>
-    <script src="https://unpkg.com/force-graph"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+# ── Node colour / classification ─────────────────────────────────────────────
+
+def _classify(deg):
+    if deg > 50:  return {"color": "#a855f7", "label": "Hub"}       # violet
+    if deg > 20:  return {"color": "#ef4444", "label": "Active"}    # red
+    if deg > 5:   return {"color": "#f59e0b", "label": "Medium"}    # amber
+    return              {"color": "#00d4ff", "label": "Standard"}   # cyan
+
+
+# ── CSS / JS we'll inject into the pyvis HTML ────────────────────────────────
+
+_INJECT_HEAD = """
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg-color: #0b0f19;
-            --panel-bg: rgba(255, 255, 255, 0.05);
-            --panel-border: rgba(255, 255, 255, 0.1);
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-            --accent: #3b82f6;
-            --accent-glow: rgba(59, 130, 246, 0.5);
+        /* ── Theme overrides ─────────────────────────────────────── */
+        body {
+            background: #05070f !important;
+            font-family: 'Space Grotesk', sans-serif !important;
+            color: #e2e8f0 !important;
+            margin: 0 !important;
+            overflow: hidden !important;
         }
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: var(--bg-color);
-            font-family: 'Inter', sans-serif;
-            color: var(--text-main);
-            overflow: hidden;
+
+        /* Hide the pyvis toolbar / heading pyvis sometimes adds */
+        h1, .vis-network-tooltip { display: none !important; }
+
+        /* Make the canvas container fill the window */
+        #mynetwork {
+            width: 100vw !important;
+            height: 100vh !important;
+            border: none !important;
+            background: #05070f !important;
         }
-        #graph-container {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
-        }
-        .dashboard {
-            position: absolute;
+
+        /* ── Glassmorphism panel ─────────────────────────────────── */
+        .sn-panel {
+            position: fixed;
             top: 20px;
             left: 20px;
-            width: 320px;
-            z-index: 10;
-            background: var(--panel-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--panel-border);
+            width: 288px;
+            z-index: 999;
+            background: rgba(13, 17, 32, 0.78);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(100, 180, 255, 0.13);
             border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            padding: 22px 22px 18px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            animation: slideIn 0.5s ease-out forwards;
+            gap: 14px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+            animation: snSlide .55s cubic-bezier(.16,1,.3,1) both;
         }
-        @keyframes slideIn {
-            from { transform: translateX(-50px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
+        @keyframes snSlide {
+            from { transform: translateX(-40px); opacity: 0; }
+            to   { transform: translateX(0);     opacity: 1; }
         }
-        h1 {
-            font-size: 1.5rem;
-            margin: 0;
+
+        /* Eyebrow */
+        .sn-eyebrow {
+            font-size: .62rem;
             font-weight: 600;
-            background: linear-gradient(90deg, #60a5fa, #c084fc);
+            letter-spacing: .18em;
+            text-transform: uppercase;
+            color: #00d4ff;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        .sn-eyebrow::before {
+            content: '';
+            display: inline-block;
+            width: 16px; height: 2px;
+            background: #00d4ff;
+            border-radius: 2px;
+        }
+
+        /* Title */
+        .sn-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -.02em;
+            line-height: 1.1;
+            background: linear-gradient(135deg, #00d4ff 0%, #a855f7 55%, #ec4899 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-top: -4px;
         }
-        .stat-card {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 12px;
-            padding: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            transition: transform 0.2s, box-shadow 0.2s;
+        .sn-sub {
+            font-size: .77rem;
+            color: #64748b;
+            margin-top: -8px;
         }
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px var(--accent-glow);
+
+        /* Stats grid */
+        .sn-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
         }
-        .stat-label {
-            font-size: 0.85rem;
-            color: var(--text-muted);
+        .sn-stat {
+            background: rgba(0,0,0,.32);
+            border: 1px solid rgba(100,180,255,.1);
+            border-radius: 10px;
+            padding: 11px 13px;
+            transition: border-color .25s;
+        }
+        .sn-stat:hover { border-color: rgba(0,212,255,.35); }
+        .sn-stat-label {
+            font-size: .6rem;
+            font-weight: 600;
+            letter-spacing: .1em;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            color: #64748b;
+            margin-bottom: 5px;
+        }
+        .sn-stat-value {
+            font-size: 1.45rem;
+            font-weight: 300;
+            color: #fff;
+            letter-spacing: -.02em;
+        }
+        .sn-stat-value.cyan   { color: #00d4ff; }
+        .sn-stat-value.violet { color: #a855f7; }
+        .sn-stat-value.red    { color: #ef4444; }
+
+        /* Divider */
+        .sn-divider {
+            height: 1px;
+            background: rgba(100,180,255,.09);
+        }
+
+        /* Legend */
+        .sn-legend-title {
+            font-size: .6rem;
+            font-weight: 600;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: #64748b;
             margin-bottom: 8px;
         }
-        .stat-value {
-            font-size: 1.8rem;
-            font-weight: 300;
+        .sn-legend {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
-        .stat-value.small {
-            font-size: 1.1rem;
-            word-break: break-all;
-            color: #93c5fd;
+        .sn-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-size: .78rem;
+            color: #e2e8f0;
         }
-        .node-tooltip {
-            background: rgba(15, 23, 42, 0.9) !important;
-            border: 1px solid rgba(255,255,255,0.2) !important;
+        .sn-dot {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            box-shadow: 0 0 5px currentColor;
+        }
+
+        /* ── Status pill ─────────────────────────────────────────── */
+        .sn-status {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            background: rgba(13,17,32,.82);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100,180,255,.12);
+            border-radius: 100px;
+            padding: 7px 18px;
+            font-size: .7rem;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+            animation: snFadeUp .8s ease-out .4s both;
+        }
+        @keyframes snFadeUp {
+            from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+            to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        .sn-pulse {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 6px #10b981;
+            animation: snPulse 2s infinite;
+        }
+        @keyframes snPulse {
+            0%,100% { opacity:1; } 50% { opacity:.25; }
+        }
+
+        /* ── Tooltip override ────────────────────────────────────── */
+        div.vis-tooltip {
+            background: rgba(13,17,32,.95) !important;
+            border: 1px solid rgba(100,180,255,.25) !important;
             border-radius: 8px !important;
-            padding: 12px !important;
-            font-family: 'Inter', sans-serif !important;
-            backdrop-filter: blur(4px) !important;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
-            color: #fff !important;
+            color: #e2e8f0 !important;
+            font-family: 'Space Grotesk', sans-serif !important;
+            font-size: .78rem !important;
+            padding: 9px 13px !important;
+            box-shadow: 0 4px 24px rgba(0,0,0,.5) !important;
+            backdrop-filter: blur(8px) !important;
         }
-        .tooltip-title { font-weight: 600; color: #60a5fa; margin-bottom: 4px; font-size: 0.9rem;}
-        .tooltip-info { font-size: 0.8rem; color: #cbd5e1; }
     </style>
-</head>
-<body>
-    <div id="graph-container"></div>
-    
-    <div class="dashboard">
-        <h1>Sybil-Net Explorer</h1>
-        <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: -10px;">Network Topology Analysis</p>
-        
-        <div class="stat-card">
-            <div class="stat-label">Total Nodes</div>
-            <div class="stat-value" id="total-nodes">-</div>
+"""
+
+_INJECT_BODY_OPEN = """
+    <!-- ── Sybil-Net UI Panel ──────────────────────────────────── -->
+    <div class="sn-panel">
+        <div class="sn-eyebrow">Sybil Network</div>
+        <div class="sn-title">Graph Explorer</div>
+        <div class="sn-sub">Blockchain topology · anomaly detection</div>
+
+        <div class="sn-stats">
+            <div class="sn-stat">
+                <div class="sn-stat-label">Nodes</div>
+                <div class="sn-stat-value cyan" id="sn-nodes">—</div>
+            </div>
+            <div class="sn-stat">
+                <div class="sn-stat-label">Edges</div>
+                <div class="sn-stat-value" id="sn-edges">—</div>
+            </div>
+            <div class="sn-stat">
+                <div class="sn-stat-label">Hubs</div>
+                <div class="sn-stat-value violet" id="sn-hubs">—</div>
+            </div>
+            <div class="sn-stat">
+                <div class="sn-stat-label">Active</div>
+                <div class="sn-stat-value red" id="sn-active">—</div>
+            </div>
         </div>
-        
-        <div class="stat-card">
-            <div class="stat-label">Total Edges</div>
-            <div class="stat-value" id="total-edges">-</div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-label">Highest Degree Node</div>
-            <div class="stat-value small" id="top-node">-</div>
+
+        <div class="sn-divider"></div>
+
+        <div>
+            <div class="sn-legend-title">Node Classification</div>
+            <div class="sn-legend">
+                <div class="sn-legend-item">
+                    <div class="sn-dot" style="background:#a855f7;color:#a855f7"></div>
+                    <span><b>Hub</b> &mdash; degree &gt; 50</span>
+                </div>
+                <div class="sn-legend-item">
+                    <div class="sn-dot" style="background:#ef4444;color:#ef4444"></div>
+                    <span><b>Active</b> &mdash; degree 21&ndash;50</span>
+                </div>
+                <div class="sn-legend-item">
+                    <div class="sn-dot" style="background:#f59e0b;color:#f59e0b"></div>
+                    <span><b>Medium</b> &mdash; degree 6&ndash;20</span>
+                </div>
+                <div class="sn-legend-item">
+                    <div class="sn-dot" style="background:#00d4ff;color:#00d4ff"></div>
+                    <span><b>Standard</b> &mdash; degree &le; 5</span>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script>
-        // Graph data injected by Python
-        const graphData = __GRAPH_DATA__;
-        
-        // Update stats
-        document.getElementById('total-nodes').textContent = graphData.nodes.length.toLocaleString();
-        document.getElementById('total-edges').textContent = graphData.links.length.toLocaleString();
-        
-        if (graphData.nodes.length > 0) {
-            const topNode = graphData.nodes.reduce((prev, current) => (prev.val > current.val) ? prev : current);
-            document.getElementById('top-node').textContent = topNode.id.substring(0, 12) + "...";
-        }
-
-        // Color scale based on degree
-        const getColor = (val) => {
-            if (val > 50) return '#c084fc'; // Purple for hubs
-            if (val > 20) return '#ef4444'; // Red for highly active
-            if (val > 5) return '#f59e0b';  // Yellow for medium
-            return '#3b82f6';               // Blue for standard nodes
-        };
-
-        const Graph = ForceGraph()(document.getElementById('graph-container'))
-            .graphData(graphData)
-            .nodeId('id')
-            .nodeVal('val') // Size by degree
-            .nodeLabel(node => `
-                <div class="node-tooltip">
-                    <div class="tooltip-title">Wallet Address</div>
-                    <div class="tooltip-info" style="font-family: monospace;">${node.id}</div>
-                    <div class="tooltip-info" style="margin-top: 8px;">Degree: <b>${node.val}</b></div>
-                </div>
-            `)
-            .nodeColor(node => getColor(node.val))
-            .linkSource('source')
-            .linkTarget('target')
-            .linkColor(() => 'rgba(255, 255, 255, 0.15)')
-            .linkWidth(link => Math.max(1, Math.min(link.weight || 1, 5)))
-            .backgroundColor('#0b0f19')
-            .d3Force('charge', d3.forceManyBody().strength(-120))
-            .d3Force('link', d3.forceLink().distance(40))
-            .onNodeHover(node => {
-                document.body.style.cursor = node ? 'pointer' : null;
-            });
-            
-        // Initial animation
-        setTimeout(() => {
-            Graph.zoomToFit(1000, 50);
-        }, 1000);
-    </script>
-</body>
-</html>
+    <!-- ── Status bar ──────────────────────────────────────────── -->
+    <div class="sn-status" id="sn-status">
+        <div class="sn-pulse"></div>
+        <span>Loading graph…</span>
+    </div>
 """
 
-def visualize_graph(graph_path=None, sample_size=1000):
+_INJECT_BODY_SCRIPT = """
+    <script>
+        // Populate stats injected by Python
+        const _snNodes  = __SN_NODES__;
+        const _snEdges  = __SN_EDGES__;
+        const _snHubs   = __SN_HUBS__;
+        const _snActive = __SN_ACTIVE__;
+        document.getElementById('sn-nodes').textContent  = _snNodes.toLocaleString();
+        document.getElementById('sn-edges').textContent  = _snEdges.toLocaleString();
+        document.getElementById('sn-hubs').textContent   = _snHubs.toLocaleString();
+        document.getElementById('sn-active').textContent = _snActive.toLocaleString();
+
+        // Update status once vis.js fires stabilised
+        const _net = window.network || null;
+        document.addEventListener('DOMContentLoaded', () => {
+            // vis.js attaches to window.network inside the pyvis template
+            setTimeout(() => {
+                const sn = document.getElementById('sn-status');
+                sn.innerHTML = '<div class="sn-pulse"></div><span>' +
+                    _snNodes.toLocaleString() + ' nodes &middot; ' +
+                    _snEdges.toLocaleString() + ' edges &middot; live</span>';
+            }, 2000);
+        });
+    </script>
+"""
+
+# ── Pyvis options (Barnes-Hut physics, original feel) ────────────────────────
+
+_VIS_OPTIONS = """
+{
+  "nodes": {
+    "borderWidth": 2,
+    "borderWidthSelected": 4,
+    "font": { "size": 0 }
+  },
+  "edges": {
+    "color": { "color": "rgba(100,180,255,0.18)", "highlight": "rgba(0,212,255,0.7)" },
+    "smooth": { "type": "continuous" },
+    "width": 0.8,
+    "selectionWidth": 2
+  },
+  "interaction": {
+    "hover": true,
+    "navigationButtons": false,
+    "keyboard": true,
+    "tooltipDelay": 150
+  },
+  "physics": {
+    "barnesHut": {
+      "gravitationalConstant": -30000,
+      "centralGravity": 0.3,
+      "springLength": 95,
+      "springConstant": 0.04,
+      "damping": 0.09,
+      "avoidOverlap": 0.1
+    },
+    "minVelocity": 0.75
+  }
+}
+"""
+
+
+def _inject_theme(html: str, nodes: int, edges: int, hubs: int, active: int) -> str:
+    """Post-process pyvis HTML to inject our UI theme."""
+
+    # 1. Inject fonts + CSS before </head>
+    html = html.replace("</head>", _INJECT_HEAD + "\n</head>", 1)
+
+    # 2. Inject panel + status bar right after <body>
+    html = re.sub(r"(<body[^>]*>)", r"\1\n" + _INJECT_BODY_OPEN, html, count=1)
+
+    # 3. Inject stats script before </body>
+    stats_script = (
+        _INJECT_BODY_SCRIPT
+        .replace("__SN_NODES__",  str(nodes))
+        .replace("__SN_EDGES__",  str(edges))
+        .replace("__SN_HUBS__",   str(hubs))
+        .replace("__SN_ACTIVE__", str(active))
+    )
+    html = html.replace("</body>", stats_script + "\n</body>", 1)
+
+    return html
+
+
+# ── Main function ─────────────────────────────────────────────────────────────
+
+def visualize_graph(graph_path=None, sample_size=500):
     if not graph_path:
         graph_path = os.path.join(PROCESSED_DATA_PATH, "graph.pkl")
-        
+
     print("Loading graph for visualization...")
-    with open(graph_path, 'rb') as f:
+    with open(graph_path, "rb") as f:
         G = pickle.load(f)
-        
+
     print(f"Original graph has {G.number_of_nodes()} nodes.")
-    
+
     if G.number_of_nodes() > sample_size:
         print(f"Sampling {sample_size} nodes for a performant UI...")
         degrees = sorted(G.degree(), key=lambda x: x[1], reverse=True)
@@ -208,36 +380,72 @@ def visualize_graph(graph_path=None, sample_size=1000):
         G_vis = G.subgraph(top_nodes)
     else:
         G_vis = G
-        
-    # Prepare JSON data
-    nodes_data = []
+
+    # ── Build pyvis network ───────────────────────────────────────────────────
+    net = Network(
+        height="100vh",
+        width="100%",
+        bgcolor="#05070f",
+        font_color="white",
+        directed=True,
+        notebook=False,
+    )
+
+    hubs = active = 0
+
     for node in G_vis.nodes():
         deg = G_vis.degree(node)
-        nodes_data.append({
-            "id": node,
-            "val": deg
-        })
-        
-    links_data = []
+        c   = _classify(deg)
+        size = max(8, min(deg * 1.8, 55))   # cap max size so hubs don't overwhelm
+
+        if c["label"] == "Hub":    hubs   += 1
+        if c["label"] == "Active": active += 1
+
+        net.add_node(
+            node,
+            label="",                              # no clutter — tooltip on hover
+            title=f"<b style='color:{c['color']}'>{c['label']}</b><br>"
+                  f"<span style='font-family:monospace;font-size:.8em'>{node[:16]}…</span><br>"
+                  f"Degree: <b>{deg}</b>",
+            size=size,
+            color={
+                "background": c["color"],
+                "border": "#05070f",
+                "highlight": {"background": "#ffffff", "border": c["color"]},
+                "hover":     {"background": c["color"], "border": "#ffffff"},
+            },
+        )
+
     for u, v, data in G_vis.edges(data=True):
-        links_data.append({
-            "source": u,
-            "target": v,
-            "weight": data.get('weight', 1)
-        })
-        
-    graph_json = {
-        "nodes": nodes_data,
-        "links": links_data
-    }
-    
-    html_content = HTML_TEMPLATE.replace("__GRAPH_DATA__", json.dumps(graph_json))
-    
+        weight = data.get("weight", 1)
+        net.add_edge(
+            u, v,
+            value=weight,
+            title=f"Transactions: <b>{weight}</b>",
+        )
+
+    net.set_options(_VIS_OPTIONS)
+
+    # Save raw pyvis HTML to a temp buffer then inject theme
     output_path = os.path.join(os.path.dirname(__file__), "graph_visualization.html")
-    with open(output_path, "w") as f:
-        f.write(html_content)
-        
-    print(f"Beautiful UI Visualization saved to {output_path}")
+    net.save_graph(output_path)
+
+    with open(output_path, "r", encoding="utf-8") as f:
+        raw_html = f.read()
+
+    themed_html = _inject_theme(
+        raw_html,
+        nodes=G_vis.number_of_nodes(),
+        edges=G_vis.number_of_edges(),
+        hubs=hubs,
+        active=active,
+    )
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(themed_html)
+
+    print(f"Graph visualization saved to {output_path}")
+
 
 if __name__ == "__main__":
     visualize_graph()

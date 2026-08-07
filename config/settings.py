@@ -3,7 +3,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Alchemy API key (replaces Etherscan)
+ALCHEMY_API_KEY = os.getenv("ALCHEMY_API_KEY", "")
+
+# Legacy Etherscan key (kept for backward compatibility)
 API_KEY = os.getenv("ETHERSCAN_API_KEY", "")
+
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 RAW_DATA_PATH = os.path.join(DATA_DIR, "raw", "transactions.csv")
 PROCESSED_DATA_PATH = os.path.join(DATA_DIR, "processed")
