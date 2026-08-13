@@ -4,6 +4,7 @@ from graph.builder import build_graph
 from features.extractor import extract_features
 from utils.export import export_datasets
 from visualization.viewer import visualize_graph
+from models.gnn import run_gnn_pipeline
 
 def run_pipeline():
     print("=== Sybil-Net Week 1 Pipeline ===")
@@ -22,7 +23,10 @@ def run_pipeline():
     
     print("\n--- Step 5: Visualization ---")
     visualize_graph()
-    
+
+    print("\n--- Step 6: GNN Model Training ---")
+    run_gnn_pipeline()
+
     print("\n=== Pipeline Complete ===")
 
 if __name__ == "__main__":

@@ -6,3 +6,8 @@ matplotlib
 pyvis
 scipy
 python-dotenv
+python-dateutil
+torch
+torchvision
+torch_geometric
+scikit-learn
