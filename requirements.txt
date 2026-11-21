@@ -11,3 +11,9 @@ torch
 torchvision
 torch_geometric
 scikit-learn
+# Week 5 — Mempool Monitor
+web3
+websockets
+# Week 6 — Testing
+pytest
+pytest-cov

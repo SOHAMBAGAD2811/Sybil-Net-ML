@@ -1,9 +1,18 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.27;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
+
+interface IZKVerifier {
+    function verifyHumanityProof(
+        uint[2] memory pA,
+        uint[2][2] memory pB,
+        uint[2] memory pC,
+        uint[4] memory pubSignals
+    ) external returns (bool);
+}
 
 /**
  * @title  SybilNet
@@ -71,6 +80,9 @@ contract SybilNet is AccessControl, ReentrancyGuard, Pausable {
     /// Total ETH slashed since deployment
     uint256 public totalSlashed;
 
+    /// ZK Verifier contract address
+    address public zkVerifier;
+
     // ─── Events ───────────────────────────────────────────────────────────
     event CredentialMinted(address indexed wallet, uint256 stakedAmount, uint256 timestamp);
     event CredentialRevoked(address indexed wallet, string reason);
@@ -80,6 +92,7 @@ contract SybilNet is AccessControl, ReentrancyGuard, Pausable {
     event OracleScoreUpdated(address indexed wallet, uint256 oldScore, uint256 newScore);
     event MinStakeUpdated(uint256 oldMin, uint256 newMin);
     event TreasuryUpdated(address oldTreasury, address newTreasury);
+    event AnonymousCredentialVerified(bytes32 nullifier, uint256 timestamp);
 
     // ─── Errors ───────────────────────────────────────────────────────────
     error InsufficientStake(uint256 sent, uint256 required);
@@ -92,6 +105,7 @@ contract SybilNet is AccessControl, ReentrancyGuard, Pausable {
     error TransferFailed();
     error InvalidAddress();
     error InvalidBps(uint256 bps);
+    error InvalidZKProof();
 
     // ─── Modifiers ────────────────────────────────────────────────────────
     modifier hasActiveCredential(address wallet) {
@@ -182,6 +196,25 @@ contract SybilNet is AccessControl, ReentrancyGuard, Pausable {
 
         (bool ok, ) = payable(msg.sender).call{value: amount}("");
         if (!ok) revert TransferFailed();
+    }
+
+    /**
+     * @notice Verify a zk-SNARK proof of humanity without revealing the wallet.
+     * @dev    Calls the ZKVerifier contract. Reverts if proof is invalid or reused.
+     */
+    function verifyAnonymous(
+        uint[2] memory pA,
+        uint[2][2] memory pB,
+        uint[2] memory pC,
+        uint[4] memory pubSignals
+    ) external whenNotPaused {
+        if (zkVerifier == address(0)) revert InvalidAddress();
+
+        bool isValid = IZKVerifier(zkVerifier).verifyHumanityProof(pA, pB, pC, pubSignals);
+        if (!isValid) revert InvalidZKProof();
+
+        bytes32 nullifier = keccak256(abi.encodePacked(pA, pB, pC, pubSignals));
+        emit AnonymousCredentialVerified(nullifier, block.timestamp);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -355,6 +388,14 @@ contract SybilNet is AccessControl, ReentrancyGuard, Pausable {
     {
         if (newBps > 3000) revert InvalidBps(newBps); // cap at 30%
         slashReporterFeeBps = newBps;
+    }
+
+    function setZKVerifier(address _zkVerifier)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        if (_zkVerifier == address(0)) revert InvalidAddress();
+        zkVerifier = _zkVerifier;
     }
 
     function pause()   external onlyRole(GUARDIAN_ROLE) { _pause(); }

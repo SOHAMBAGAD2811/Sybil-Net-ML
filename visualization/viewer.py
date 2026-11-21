@@ -248,23 +248,23 @@ _INJECT_BODY_OPEN = """
         <div class="sn-divider"></div>
 
         <div>
-            <div class="sn-legend-title">Node Classification</div>
+            <div class="sn-legend-title">GNN Trust Score</div>
             <div class="sn-legend">
                 <div class="sn-legend-item">
-                    <div class="sn-dot" style="background:#a855f7;color:#a855f7"></div>
-                    <span><b>Hub</b> &mdash; degree &gt; 50</span>
-                </div>
-                <div class="sn-legend-item">
                     <div class="sn-dot" style="background:#ef4444;color:#ef4444"></div>
-                    <span><b>Active</b> &mdash; degree 21&ndash;50</span>
+                    <span><b>Sybil</b> &mdash; probability &ge; 70%</span>
                 </div>
                 <div class="sn-legend-item">
                     <div class="sn-dot" style="background:#f59e0b;color:#f59e0b"></div>
-                    <span><b>Medium</b> &mdash; degree 6&ndash;20</span>
+                    <span><b>Suspicious</b> &mdash; probability 30&ndash;69%</span>
                 </div>
                 <div class="sn-legend-item">
-                    <div class="sn-dot" style="background:#00d4ff;color:#00d4ff"></div>
-                    <span><b>Standard</b> &mdash; degree &le; 5</span>
+                    <div class="sn-dot" style="background:#10b981;color:#10b981"></div>
+                    <span><b>Human</b> &mdash; probability &lt; 30%</span>
+                </div>
+                <div class="sn-legend-item">
+                    <div class="sn-dot" style="background:#a855f7;color:#a855f7"></div>
+                    <span><b>Unknown</b> &mdash; Hub / not scored</span>
                 </div>
             </div>
         </div>
@@ -367,6 +367,16 @@ def visualize_graph(graph_path=None, sample_size=500):
     if not graph_path:
         graph_path = os.path.join(PROCESSED_DATA_PATH, "graph.pkl")
 
+    # Load Sybil Scores from GNN
+    sybil_scores = {}
+    scores_path = os.path.join(PROCESSED_DATA_PATH, "node_scores.csv")
+    if os.path.exists(scores_path):
+        import csv
+        with open(scores_path, "r") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                sybil_scores[row['node_id'].lower()] = float(row['sybil_probability'])
+
     print("Loading graph for visualization...")
     with open(graph_path, "rb") as f:
         G = pickle.load(f)
@@ -375,8 +385,13 @@ def visualize_graph(graph_path=None, sample_size=500):
 
     if G.number_of_nodes() > sample_size:
         print(f"Sampling {sample_size} nodes for a performant UI...")
-        degrees = sorted(G.degree(), key=lambda x: x[1], reverse=True)
-        top_nodes = [n for n, d in degrees[:sample_size]]
+        # Prefer sampling Sybils if we have scores, otherwise degree
+        if sybil_scores:
+            nodes_by_score = sorted(G.nodes(), key=lambda n: sybil_scores.get(n.lower(), 0), reverse=True)
+            top_nodes = nodes_by_score[:sample_size]
+        else:
+            degrees = sorted(G.degree(), key=lambda x: x[1], reverse=True)
+            top_nodes = [n for n, d in degrees[:sample_size]]
         G_vis = G.subgraph(top_nodes)
     else:
         G_vis = G
@@ -395,18 +410,30 @@ def visualize_graph(graph_path=None, sample_size=500):
 
     for node in G_vis.nodes():
         deg = G_vis.degree(node)
-        c   = _classify(deg)
+        
+        # New Classification based on Sybil Score
+        score = sybil_scores.get(node.lower(), -1)
+        if score >= 0.7:
+            c = {"color": "#ef4444", "label": "🚨 Sybil"}       # red
+        elif score >= 0.3:
+            c = {"color": "#f59e0b", "label": "⚠️ Suspicious"} # amber
+        elif score >= 0.0:
+            c = {"color": "#10b981", "label": "✅ Human"}       # green
+        else:
+            c = _classify(deg) # fallback to old logic
+
         size = max(8, min(deg * 1.8, 55))   # cap max size so hubs don't overwhelm
 
-        if c["label"] == "Hub":    hubs   += 1
-        if c["label"] == "Active": active += 1
+        if deg > 50:    hubs   += 1
+        if deg > 20: active += 1
 
         net.add_node(
             node,
             label="",                              # no clutter — tooltip on hover
             title=f"<b style='color:{c['color']}'>{c['label']}</b><br>"
                   f"<span style='font-family:monospace;font-size:.8em'>{node[:16]}…</span><br>"
-                  f"Degree: <b>{deg}</b>",
+                  f"Degree: <b>{deg}</b>" + 
+                  (f"<br>Sybil Prob: <b>{score*100:.1f}%</b>" if score >= 0 else ""),
             size=size,
             color={
                 "background": c["color"],

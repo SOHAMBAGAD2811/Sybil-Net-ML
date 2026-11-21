@@ -309,10 +309,10 @@ node_scores.csv
 | 1 | Data Pipeline | ✅ Complete |
 | 2 | GNN Model (GraphSAGE) | ✅ Complete |
 | 3 | Smart Contract + Oracle Bridge | ✅ Complete |
-| 4 | Marketplace UI + Real-time Dashboard | 🔲 Next |
-| 5 | Mempool Monitor (MEV/sandwich detection) | 🔲 Planned |
-| 6 | Polish + Integration Tests | 🔲 Planned |
-| 7 | Presentation + Final README | 🔲 Planned |
+| 4 | Marketplace UI + Real-time Dashboard | ✅ Complete |
+| 5 | Mempool Monitor (MEV/sandwich detection) | ✅ Complete |
+| 6 | Polish + Integration Tests (102 pytest + 22 Hardhat) | ✅ Complete |
+| 7 | Presentation + Final README | 🔲 Next |
 | 8 | zk-SNARK Privacy Layer (stretch goal) | 🔲 Stretch |
 
 ---

@@ -1,0 +1,256 @@
+%% ==============================================================================
+%% Sybil-Net: Inductive Graph Neural Network Protocol for On-Chain Bot Farm Detection & Zero-Knowledge Reputation
+%% Subtitle: GraphSAGE Topological Intelligence, Automated Cryptoeconomic Slashing, Groth16 zk-SNARK Credentials & Real-Time Mempool Shield for Web3 Sybil Defense
+%% Pure Mermaid Diagram Definitions (.mmd)
+%% Focus: Introduction | System & Tech Stack | Problem Statement | Objectives | Literature Review
+%% ==============================================================================
+
+%% ------------------------------------------------------------------------------
+%% DIAGRAM 1: Protocol Architecture Overview
+%% ------------------------------------------------------------------------------
+graph LR
+    A[Ethereum Transaction Graph] --> B[12 Topological Features]
+    B --> C[GraphSAGE GNN Model]
+    C -->|Sybil Score 0-100| D[Web3 Oracle Bridge]
+    D --> E[SybilNet.sol Smart Contract]
+    E --> F{Risk Threshold}
+    F -->|High Risk >70| G[Automated Slashing & Revocation]
+    F -->|Low Risk <30| H[zk-SNARK Humanity Credential]
+
+%% ------------------------------------------------------------------------------
+%% DIAGRAM 2: Presentation Mindmap Agenda
+%% ------------------------------------------------------------------------------
+mindmap
+  root((Sybil-Net Focus))
+    1. Introduction
+      Web3 Identity Crisis
+      Topological Behavioral Shift
+      Graph Analysis Paradigm
+    2. System & Tech Stack
+      ML & Graph Engine
+      Blockchain & ZK Cryptography
+      Hardware Requirements
+    3. Problem Statement
+      Permissionless Bot Farms
+      Lack of Financial Penalties
+      Privacy & Speed Paradox
+    4. Objectives of Problem
+      Obj 1: Inductive GNN Engine
+      Obj 2: Stake-Backed Slashing
+      Obj 3: ZK Privacy & Shield
+    5. Comparative Literature Review
+      Evolution of Sybil Defenses
+      Comparative Method Matrix
+      Synthesis & Research Gap
+    6. References
+      Academic Bibliography
+      Primary Literature
+
+%% ------------------------------------------------------------------------------
+%% DIAGRAM 3: System Requirements & Technological Architecture Layer
+%% ------------------------------------------------------------------------------
+flowchart TB
+    subgraph Layer1["1. ML & Graph Engine Layer"]
+        ML1[PyTorch Geometric - GraphSAGE GNN Model]
+        ML2[NetworkX - 12 Topological Node Features]
+        ML3[Pandas / Scikit-learn Feature Pipeline]
+    end
+
+    subgraph Layer2["2. Blockchain & Cryptography Layer"]
+        BC1[Ethereum Solidity ^0.8.20 Smart Contracts]
+        BC2[Circom 2.0 & Groth16 zk-SNARK Circuits]
+        BC3[Web3.py Oracle Bridge & Hardhat Local Node]
+    end
+
+    subgraph Layer3["3. Real-Time & Application Layer"]
+        APP1[Alchemy WebSocket Pending Tx Listener]
+        APP2[Next.js React 18 Web3 Application Hub]
+        APP3[D3.js Force-Graph Visualizer]
+    end
+
+    Layer1 --> Layer2 --> Layer3
+
+%% ------------------------------------------------------------------------------
+%% DIAGRAM 4: Isolated Wallet Inspection vs Topological Graph Analysis
+%% ------------------------------------------------------------------------------
+flowchart TD
+    Sub1[Isolated Wallet Inspection] -->|Fails| Res1[Appears as an active, legitimate account]
+    Sub2[Network Topology Graph Analysis] -->|Succeeds| Res2[Exposes Coordinated Hub-and-Spoke Bot Ring]
+    
+    style Res1 fill:#ffcccc,stroke:#ff0000,stroke-width:1px
+    style Res2 fill:#ccffcc,stroke:#009900,stroke-width:1px
+
+%% ------------------------------------------------------------------------------
+%% DIAGRAM 5: Unified Problem Statement Breakdown & Dimensions
+%% ------------------------------------------------------------------------------
+graph TD
+    Root[Unified Problem Statement] --> Dim1[Dimension 1: Bot Farm Scaling & Heuristic Gaming]
+    Root --> Dim2[Dimension 2: Absence of On-Chain Financial Penalties]
+    Root --> Dim3[Dimension 3: Privacy Exposure & Mempool Attack Latency]
+
+    Dim1 --> D1_Details[Rules gamed by tuning scripts; CAPTCHAs neutralized by LLMs]
+    Dim2 --> D2_Details[Off-chain models yield reports; attackers face 0 financial loss]
+    Dim3 --> D3_Details[Public KYC doxes wallet history; post-block GNNs miss mempool MEV]
+
+    style Dim1 fill:#ffe6e6,stroke:#ff0000,stroke-width:1.5px
+    style Dim2 fill:#fff0e6,stroke:#ff6600,stroke-width:1.5px
+    style Dim3 fill:#e6f2ff,stroke:#0066cc,stroke-width:1.5px
+
+%% ------------------------------------------------------------------------------
+%% DIAGRAM 6: Bot Farm Attack Vector Topology
+%% ------------------------------------------------------------------------------
+flowchart LR
+    A[Bot Controller Script] --> B[Bot Wallet 1]
+    A --> C[Bot Wallet 2]
+    A --> D[Bot Wallet 3]
+    B --> E((Target Web3 Protocol))
+    C --> E
+    D --> E
+    
+    style A fill:#ff9999,stroke:#cc0000
+    style E fill:#99ccff,stroke:#0000cc
+
+%% ------------------------------------------------------------------------------
+%% DIAGRAM 7: Mapping Problem Statement Dimensions to Engineering Objectives
+%% ------------------------------------------------------------------------------
+gantt
+    title Mapping Problem Statement Dimensions to Engineering Objectives
+    dateFormat  YYYY-MM-DD
+    section Objective 1 (Solves Dim 1)
+    Graph Ingestion & 12 Topological Features : active, obj1, 2026-01-01, 30d
+    Inductive GraphSAGE GNN Model             : active, obj1_2, 2026-01-15, 30d
+    section Objective 2 (Solves Dim 2)
+    SybilNet.sol Contract & 0.01 ETH Stake    : active, obj2, 2026-02-01, 25d
+    Automated Oracle Bridge & Slashing Pool   : active, obj2_2, 2026-02-15, 20d
+    section Objective 3 (Solves Dim 3)
+    Circom zk-SNARK Humanity Credentials      : active, obj3, 2026-02-20, 25d
+    WebSocket Mempool Interception Engine     : active, obj3_2, 2026-03-01, 20d
+
+%% ------------------------------------------------------------------------------
+%% DIAGRAM 8: Objective 1 — GraphSAGE Feature & Neural Aggregation Pipeline
+%% ------------------------------------------------------------------------------
+flowchart LR
+    subgraph Graph_Feature_Extraction["12 Topological Features"]
+        F1[Degree & Tx Volume]
+        F2[Reciprocity & Clustering]
+        F3[Betweenness & PageRank]
+    end
+
+    subgraph GraphSAGE_Engine["GraphSAGE PyG Model"]
+        S1["SAGEConv(12 -> 128)\nMean Aggregator"]
+        S2["SAGEConv(128 -> 64)\nBatchNorm + ReLU"]
+        S3["SAGEConv(64 -> 2)\nSybil Risk Score"]
+    end
+
+    Graph_Feature_Extraction --> GraphSAGE_Engine
+
+%% ------------------------------------------------------------------------------
+%% DIAGRAM 9: Objective 2 — On-Chain Staking & Automated Oracle Slashing Sequence
+%% ------------------------------------------------------------------------------
+sequenceDiagram
+    autonumber
+    actor User as Wallet Owner
+    participant Oracle as Web3 Oracle Bridge
+    participant Contract as SybilNet.sol Contract
+    participant Treasury as Slashing Pool
+
+    User->>Contract: mintCredential() + Stake 0.01 ETH
+    Contract-->>User: Issue Humanity Credential (Status: Active)
+    
+    loop Continuous Graph Monitoring
+        Oracle->>Oracle: Compute GraphSAGE Sybil Risk Score
+    end
+
+    alt Sybil Risk Score > 70 (High Risk)
+        Oracle->>Contract: slash(userAddr, "Sybil Ring Detected")
+        Contract->>Treasury: Transfer 0.01 ETH Staked Funds
+        Contract-->>Contract: Revoke Credential & Blacklist Wallet
+        Contract-->>User: Emit SybilSlashed Event
+    end
+
+%% ------------------------------------------------------------------------------
+%% DIAGRAM 10: Objective 3 — ZK Privacy Credentials & Mempool Interception Engine
+%% ------------------------------------------------------------------------------
+flowchart TD
+    subgraph ZK_Privacy["Part A: ZK Privacy Credentials"]
+        A[Staked Wallet Key] --> B[Circom Circuit: sybil_credential.circom]
+        C[Credential State Root] --> B
+        B -->|Groth16 Prover| D[Zero-Knowledge Proof]
+        D -->|Submit Proof| E[ZKVerifier.sol Contract]
+        E -->|Verify anonymously| F[Private dApp Access]
+    end
+
+    subgraph Mempool_Shield["Part B: Mempool MEV Shield"]
+        G[WebSocket Pending Tx Stream] --> H[mempool/monitor.py]
+        H --> I[Extract Sender Graph Parameters]
+        I --> J[Pre-Confirmation GraphSAGE Inference]
+        J -->|Detect Sandwich Bot| K[Alert dApp / Block Pending Tx]
+    end
+
+%% ------------------------------------------------------------------------------
+%% DIAGRAM 11: Problem Statement to Technical Objectives Traceability Matrix
+%% ------------------------------------------------------------------------------
+flowchart LR
+    subgraph Problem_Statement["Problem Statement Dimensions"]
+        P1["Dim 1: Bot Farm Scaling & Heuristic Gaming\n(Airdrops, DAOs, Wash Trading)"]
+        P2["Dim 2: Absence of On-Chain Penalties\n(Off-chain advisory, Zero cost)"]
+        P3["Dim 3: Privacy Exposure & Mempool Latency\n(Wallet doxxing, Mempool MEV)"]
+    end
+
+    subgraph Objectives["Technical Objectives"]
+        O1["Objective 1: Inductive GNN Engine\n(GraphSAGE + 12 Features)"]
+        O2["Objective 2: On-Chain Enforcement\n(SybilNet.sol + 0.01 ETH Slashing)"]
+        O3["Objective 3: ZK & Mempool Shield\n(Groth16 zk-SNARKs + WebSockets)"]
+    end
+
+    P1 ==> O1
+    P2 ==> O2
+    P3 ==> O3
+
+    style P1 fill:#ffe6e6,stroke:#ff0000
+    style P2 fill:#fff0e6,stroke:#ff6600
+    style P3 fill:#e6f2ff,stroke:#0066cc
+    style O1 fill:#e6ffe6,stroke:#009900
+    style O2 fill:#e6ffe6,stroke:#009900
+    style O3 fill:#e6ffe6,stroke:#009900
+
+%% ------------------------------------------------------------------------------
+%% DIAGRAM 12: Historical Evolution of Sybil Detection Literature
+%% ------------------------------------------------------------------------------
+graph LR
+    A[Douceur 2002: Theory] --> B[Yu 2006/08: Social Random Walks]
+    B --> C[Kipf/Hamilton 2017: GNNs & GraphSAGE]
+    C --> D[Weber 2019: Blockchain GCNs]
+    D --> E[Sybil-Net: GNN + Slashing + ZK Privacy]
+
+%% ------------------------------------------------------------------------------
+%% DIAGRAM 13: Detection Paradigm Comparative Flow
+%% ------------------------------------------------------------------------------
+graph TD
+    A[Blockchain On-Chain Data] --> B{Detection Paradigm}
+    B -->|Static Heuristics| C[Brittle Rule Sets]
+    B -->|Transductive GCN| D[Requires Full Retraining on New Wallets]
+    B -->|Sybil-Net GraphSAGE| E[Inductive Generalization + Staking + ZK]
+    
+    style E fill:#ccffcc,stroke:#009900,stroke-width:2px
+
+%% ------------------------------------------------------------------------------
+%% DIAGRAM 14: Literature Synthesis, Research Gap & Sybil-Net Solution
+%% ------------------------------------------------------------------------------
+flowchart TB
+    subgraph Literature_Findings["Synthesis of Literature Findings"]
+        F1["1. Topology > Metadata: Graph structure captures bot rings better than isolated features."]
+        F2["2. Assumptions Fail: Social graph assumptions do not hold in pseudonymous financial graphs."]
+        F3["3. GNN Power: GraphSAGE combines structural metrics with temporal transaction parameters."]
+    end
+
+    subgraph Research_Gap["Identified Research Gap"]
+        G1["Existing literature treats Detection, Privacy, and Enforcement as isolated domains."]
+        G2["No end-to-end framework bridges Inductive GNN scores to automated smart contract slashing."]
+    end
+
+    Literature_Findings --> Research_Gap
+    Research_Gap ==> SybilNet_Contribution["Sybil-Net Protocol Solution"]
+
+    style Research_Gap fill:#fff0e6,stroke:#ff6600
+    style SybilNet_Contribution fill:#e6ffe6,stroke:#009900

@@ -54,6 +54,13 @@ flowchart LR
         J --> M[Undercollateralised\nCredit Hub]
         J --> N[Sybil-Resistant\nYield Hub]
     end
+
+    subgraph Mempool["⚡ Mempool Layer"]
+        A -->|WebSocket| P[Pending Tx Stream]
+        P --> Q[Live GNN Inference\npre-confirmation]
+        Q -->|alert| R[mempool_alerts.json]
+        R --> S[Next.js Live Feed]
+    end
 ```
 
 ---
@@ -152,6 +159,66 @@ Roles:
 
 ---
 
+### Week 4 — Marketplace UI
+
+Next.js 16 frontend serving the three-pillar Trust-Verified Marketplace. Reads live GNN data via API routes and gates all three pillars behind the Humanity Credential.
+
+| Component | File | Description |
+|-----------|------|-------------|
+| **Dashboard** | `frontend/app/page.js` | Single-page marketplace: stats bar, credential panel, 3 pillar cards, wallet table, live mempool feed |
+| **Wallet Connect** | `frontend/app/providers.js` | RainbowKit + wagmi (Hardhat / Sepolia / Mainnet) |
+| **Scores API** | `frontend/app/api/scores/route.js` | Reads `node_scores.csv` → returns 4,601 wallet scores + aggregate stats |
+| **Features API** | `frontend/app/api/features/route.js` | Reads `features.csv` → returns 12 node features per wallet |
+| **Wagmi Config** | `frontend/lib/wagmiConfig.js` | Multi-chain config: Hardhat local, Sepolia testnet, Ethereum Mainnet |
+
+**Credential gating:** connecting a wallet automatically checks it against the GNN dataset. Verified humans get `✅ Granted` access to all three marketplace pillars; flagged wallets are shown their Sybil probability and blocked.
+
+---
+
+### Week 5 — Mempool Monitor
+
+Real-time WebSocket connection to Alchemy's `alchemy_pendingTransactions` feed. Scores incoming pending transactions **before they are confirmed on-chain** using the trained GraphSAGE model.
+
+| Component | File | Description |
+|-----------|------|-------------|
+| **Monitor** | `mempool/monitor.py` | Alchemy WebSocket listener → micro-graph builder → live GNN inference → ring-buffer alert file |
+| **Mempool API** | `frontend/app/api/mempool/route.js` | Reads `mempool_alerts.json` and serves it to the frontend |
+| **Live Feed UI** | `frontend/app/page.js` — `MempoolFeed` | Auto-refreshing table (2 s poll) showing pending txs, Sybil probability, and alert level |
+
+**How the live inference works:**
+```
+Alchemy WebSocket → batch of 10 pending txs
+  → merge with baseline graph (4,601 nodes)
+  → compute same 12 node features (fast approximation for new wallets)
+  → GraphSAGE forward pass (CPU, ~10 ms per batch)
+  → append to mempool_alerts.json (capped at 200 entries)
+  → Next.js polls /api/mempool every 2 s → live browser table
+```
+
+**Alert levels:**
+| Level | Sybil Probability | Action |
+|-------|-------------------|--------|
+| `clean` | < 60% | Logged only |
+| `warning` | 60–85% | Amber badge in live feed |
+| `critical` | ≥ 85% | Red badge; oracle can slash pre-emptively |
+
+**Fallback:** if `ALCHEMY_API_KEY` is not set, the monitor runs in demo mode, generating a synthetic pending tx stream from the existing wallet dataset at 2-second intervals — no API key required to see the full UI working.
+
+---
+
+### Week 6 — zk-SNARK Integration 🔐
+
+Zero-Knowledge privacy layer that allows users to prove they hold a valid humanity score *without* revealing their wallet address or transaction history to the destination dApp.
+
+| Component | File | Description |
+|-----------|------|-------------|
+| **Circom Circuit** | `zkp/circuits/HumanityProof.circom` | Proves `sybilScore < 70` and `Poseidon(wallet, secret) == commitment` |
+| **Prover** | `zkp/scripts/generate_proof.js` | snarkjs Groth16 prover wrapper |
+| **On-Chain Verifier** | `contracts/contracts/ZKVerifier.sol` | Groth16 verification with nullifier-based replay protection |
+| **Frontend UI** | `frontend/app/components/ZKProofPanel.js` | Generates proof locally and submits anonymously |
+
+---
+
 ## Marketplace Vision
 
 > *Sybil-Net is not just a detector — it is the trust layer that unlocks the next generation of DeFi primitives.*
@@ -206,7 +273,26 @@ Step 7 — Run Oracle Bridge
   python contracts/oracle_bridge.py
   └─ Reads node_scores.csv → submits GNN scores on-chain → auto-slashes Sybil wallets
 
-Step 8 — (Full pipeline)
+Step 8 — Launch Marketplace UI
+  cd frontend && npm run dev
+  └─ Next.js dashboard at http://localhost:3000
+  └─ Connect wallet → credential check → 3-pillar marketplace access
+  └─ API routes serve live GNN data from node_scores.csv + features.csv
+
+Step 9 — Start Mempool Monitor
+  python mempool/monitor.py
+  └─ Connects to Alchemy WebSocket (or runs demo mode)
+  └─ Scores pending transactions in real-time via GraphSAGE
+  └─ Writes flagged wallets to data/processed/mempool_alerts.json
+  └─ Live feed visible in the frontend at http://localhost:3000
+
+Step 10 — Generate zk-SNARK Proof
+  python zkp/scripts/prove_humanity.py --wallet <address> --secret <salt>
+  └─ Reads node_scores.csv to verify score < 70
+  └─ Generates Groth16 proof locally via snarkjs
+  └─ Outputs: zkp/proofs/<hash>_proof.json
+
+Step 11 — (Full pipeline)
   python main.py
   └─ Runs Steps 1–5 end-to-end
 ```
@@ -254,7 +340,18 @@ Step 8 — (Full pipeline)
 | Hardhat | latest | EVM development framework |
 | OpenZeppelin Contracts | v5 | AccessControl, ReentrancyGuard, Pausable |
 | web3.py | latest | Python ↔ EVM bridge |
-| Alchemy API | — | Ethereum Mainnet data provider |
+| websockets | 15.x | Async WebSocket client (mempool) |
+| Alchemy API | — | Ethereum Mainnet data + WebSocket mempool feed |
+
+### Frontend (Week 4)
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Next.js | 16 | React framework (App Router) |
+| wagmi | 2.x | React hooks for Ethereum |
+| RainbowKit | 2.x | Wallet connect UI |
+| viem | 2.x | TypeScript Ethereum library |
+| TanStack Query | 5.x | Async state management |
 
 ---
 
@@ -282,7 +379,8 @@ Sybil-Net-ML/
 │       ├── edges.csv                # Edge list with weights
 │       ├── node_scores.csv          # GNN Sybil probability per wallet
 │       ├── sybil_sage.pt            # Trained GraphSAGE model weights
-│       └── training_history.csv     # Loss/accuracy per epoch
+│       ├── training_history.csv     # Loss/accuracy per epoch
+│       └── mempool_alerts.json      # Live mempool alerts ring-buffer (gitignored)
 │
 ├── graph/
 │   └── builder.py                   # NetworkX DiGraph construction
@@ -300,17 +398,51 @@ Sybil-Net-ML/
 ├── utils/
 │   └── export.py                    # CSV / pickle export utilities
 │
+├── mempool/                         # ⚡ Week 5 — Real-Time Mempool Monitor
+│   └── monitor.py                   # WebSocket listener + live GNN inference + alert writer
+│
+├── zkp/                             # 🔐 Week 6 — zk-SNARK Privacy Layer
+│   ├── circuits/
+│   │   └── HumanityProof.circom     # Groth16 circuit for score < threshold
+│   ├── scripts/
+│   │   ├── generate_proof.js        # snarkjs wrapper
+│   │   └── prove_humanity.py        # Python CLI proof generator
+│   └── setup.sh                     # Ceremony, compile, and export script
+│
 ├── contracts/
 │   ├── contracts/
-│   │   └── SybilNet.sol             # Core Solidity protocol contract
+│   │   ├── SybilNet.sol             # Core Solidity protocol contract
+│   │   ├── ZKVerifier.sol           # On-chain Groth16 proof verifier
+│   │   ├── SybilNetBridge.sol       # 🌉 Week 7 — L2 Cross-Chain Bridge
+│   │   └── SybilNetGovernance.sol   # 🏛️ Week 8 — DAO & Dispute Governance
 │   ├── scripts/
 │   │   └── deploy.js                # Hardhat deployment script
 │   ├── test/
-│   │   └── SybilNet.test.js         # 22-test Hardhat test suite
+│   │   ├── SybilNet.test.js         # Core test suite
+│   │   ├── SybilNetBridge.test.js   # Bridge test suite
+│   │   └── SybilNetGovernance.test.js # Governance test suite
 │   ├── oracle_bridge.py             # Python → on-chain score submission bridge
 │   └── hardhat.config.js            # Hardhat network & compiler config
 │
-└── docs/                            # Extended documentation (WIP)
+├── frontend/                        # 🏪 Week 4 — Trust-Verified Marketplace
+│   ├── app/
+│   │   ├── layout.js                # Root layout with Web3 providers
+│   │   ├── page.js                  # Main dashboard (stats, credential, pillars, feeds)
+│   │   ├── providers.js             # Wagmi + RainbowKit + TanStack Query
+│   │   ├── globals.css              # Design system (dark theme, tokens, components)
+│   │   ├── components/
+│   │   │   ├── CrossChainPanel.js   # Week 7 — Bridge Analytics UI
+│   │   │   └── GovernancePanel.js   # Week 8 — DAO Voting & Proposals UI
+│   │   └── api/
+│   │       ├── scores/route.js      # GET /api/scores  — reads node_scores.csv
+│   │       ├── features/route.js    # GET /api/features — reads features.csv
+│   │       ├── mempool/route.js     # GET /api/mempool  — reads mempool_alerts.json
+│   │       ├── crosschain/route.js  # GET /api/crosschain
+│   │       └── governance/route.js  # GET /api/governance
+│   └── lib/
+│       └── wagmiConfig.js           # Hardhat / Sepolia / Mainnet chain config
+│
+└── docs/                            # Extended documentation (week1 - week8)
 ```
 
 ---
@@ -320,8 +452,8 @@ Sybil-Net-ML/
 ### Prerequisites
 
 - Python 3.12+
-- Node.js 18+ (for Hardhat)
-- An [Alchemy](https://www.alchemy.com/) API key (free tier works)
+- Node.js 18+ (for Hardhat and Next.js)
+- An [Alchemy](https://www.alchemy.com/) API key (free tier works — also enables the live mempool WebSocket)
 
 ### 1. Clone & Install
 
@@ -333,9 +465,10 @@ cd Sybil-Net-ML
 pip install -r requirements.txt
 
 # Hardhat / contract dependencies
-cd contracts
-npm install
-cd ..
+cd contracts && npm install && cd ..
+
+# Frontend dependencies
+cd frontend && npm install && cd ..
 ```
 
 ### 2. Configure Environment
@@ -390,6 +523,38 @@ python contracts/oracle_bridge.py
 # Reads Sybil scores → submits updateSybilScore() → triggers slash() for bots
 ```
 
+### 6. Launch the Marketplace Frontend
+
+```bash
+cd frontend
+npm run dev
+# Open http://localhost:3000
+```
+
+The dashboard will immediately display:
+- **Stats bar** — live counts from `node_scores.csv` (4,601 wallets, split by Human / Sybil)
+- **Credential panel** — connect your wallet to check your GNN trust score
+- **3 Marketplace pillars** — gated by Humanity Credential status
+- **Wallet table** — searchable, paginated list of all 4,601 GNN-scored wallets
+- **Live mempool feed** — auto-updates every 2 s once the monitor is running
+
+### 7. Start the Mempool Monitor
+
+```bash
+# In a separate terminal (keep the frontend running)
+python mempool/monitor.py
+```
+
+With `ALCHEMY_API_KEY` set, this connects to the live Ethereum mainnet mempool via WebSocket and scores every incoming pending transaction in real-time. Without a key it falls back to **demo mode** (synthetic stream) so the full UI still works.
+
+Alert thresholds:
+
+| Threshold | Sybil Probability | Result |
+|-----------|-------------------|--------|
+| `clean` | < 60% | Logged, no alert |
+| `warning` | 60–85% | Amber badge in UI |
+| `critical` | ≥ 85% | Red badge; oracle can slash pre-emptively |
+
 ---
 
 ## Roadmap
@@ -399,11 +564,11 @@ python contracts/oracle_bridge.py
 | ✅ **Week 1** | Done | Data pipeline, graph construction, 12 node features, PyVis visualiser |
 | ✅ **Week 2** | Done | GraphSAGE GNN, training loop, node_scores.csv |
 | ✅ **Week 3** | Done | SybilNet.sol, oracle bridge, 22/22 tests |
-| 🔄 **Week 4** | Next | **Marketplace UI** — Next.js frontend for the 3-pillar marketplace, wallet connect, credential display |
-| ⏳ **Week 5** | Planned | **Mempool Monitor** — Real-time pending transaction streaming, live GNN inference, instant pre-confirmation Sybil detection |
-| ⏳ **Week 6** | Planned | **zk-SNARK Integration** — Zero-knowledge proofs for private GNN score attestation; prove humanity without revealing wallet graph |
-| ⏳ **Week 7** | Planned | **Cross-Chain Bridge** — ERC-721 Humanity Credential portable to Polygon, Arbitrum, Base; unified trust score across L2s |
-| ⏳ **Week 8** | Planned | **Governance & DAO** — On-chain dispute mechanism; credential holders vote on slash appeals; protocol parameter governance |
+| ✅ **Week 4** | Done | **Marketplace UI** — Next.js 16, RainbowKit wallet connect, 3-pillar dashboard, GNN data API routes |
+| ✅ **Week 5** | Done | **Mempool Monitor** — Alchemy WebSocket, live GraphSAGE inference on pending txs, real-time frontend feed |
+| ✅ **Week 6** | Done | **zk-SNARK Integration** — Zero-knowledge proofs for private GNN score attestation; prove humanity without revealing wallet graph |
+| ✅ **Week 7** | Done | **Cross-Chain Bridge** — Multi-chain ingestion, 17 cross-chain GNN features, L2 bridge contract, frontend analytics |
+| ✅ **Week 8** | Done | **Governance & DAO** — On-chain dispute mechanism; credential holders vote on slash appeals; protocol parameter governance |
 
 ---
 
@@ -439,8 +604,8 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 <div align="center">
 
-**Built over 8 weeks · Graph Neural Networks · Solidity · Ethereum**
+**Built over 8 weeks · Graph Neural Networks · Solidity · Ethereum · Next.js**
 
-*Detecting bots at the graph level, enforcing truth on-chain.*
+*Detecting bots at the graph level — in the mempool, before confirmation, enforcing truth on-chain.*
 
 </div>

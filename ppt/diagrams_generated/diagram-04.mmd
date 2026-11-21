@@ -1,0 +1,27 @@
+flowchart TD
+    subgraph Step1["Step 1: Data Ingestion & Graph Construction"]
+        A[Ethereum Node / Synthetic Data] --> B[data/ingestion.py: Ingest 50,000+ Transactions]
+        B --> C[graph/builder.py: Construct Directed NetworkX Graph G = V, E]
+    end
+
+    subgraph Step2["Step 2: Topological Feature Engineering"]
+        C --> D[features/extractor.py: Extract 12 Graph Node Features]
+        D --> E[RobustScaler Preprocessing & Outlier Normalization]
+    end
+
+    subgraph Step3["Step 3: Inductive GraphSAGE GNN Inference"]
+        E --> F[models/gnn.py: 3-Layer GraphSAGE PyG Model]
+        F -->|2-Hop Neighborhood Aggregation| G[Calculate Sybil Probability Score 0-100]
+    end
+
+    subgraph Step4["Step 4: On-Chain Enforcement & ZK Verification"]
+        G --> H[contracts/oracle_bridge.py: Web3 Oracle Bridge]
+        H --> I{Sybil Score Threshold}
+        I -->|High Risk >70| J[SybilNet.sol: Auto-Slash 0.01 ETH Stake]
+        I -->|Low Risk <30| K[ZKVerifier.sol: Groth16 Humanity Credential]
+    end
+
+    style Step1 fill:#f9f9f9,stroke:#333
+    style Step2 fill:#edf2ff,stroke:#3366cc
+    style Step3 fill:#f0fff0,stroke:#009933
+    style Step4 fill:#fff0f5,stroke:#cc0066

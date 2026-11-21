@@ -1,0 +1,13 @@
+graph LR
+    A[Ethereum Transaction Graph] --> B[12 Topological Features]
+    B --> C[GraphSAGE GNN Model]
+    C -->|Sybil Risk Score 0-100| D[Web3 Oracle Bridge]
+    D --> E[SybilNet.sol Smart Contract]
+    E --> F{Risk Threshold}
+    F -->|High Risk >70| G[Automated 0.01 ETH Slashing]
+    F -->|Low Risk <30| H[zk-SNARK Humanity Credential]
+
+    style A fill:#f9f9f9,stroke:#333
+    style C fill:#edf2ff,stroke:#3366cc
+    style G fill:#ffcccc,stroke:#cc0000
+    style H fill:#ccffcc,stroke:#009900

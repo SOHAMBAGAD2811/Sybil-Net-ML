@@ -1,0 +1,25 @@
+sequenceDiagram
+    autonumber
+    actor User as Wallet Owner
+    participant Oracle as Web3 Oracle Bridge
+    participant Contract as SybilNet.sol Contract
+    participant Treasury as Slashing Pool
+    participant ZK as ZKVerifier.sol Contract
+
+    User->>Contract: mintCredential() + Stake 0.01 ETH
+    Contract-->>User: Issue Humanity Credential (Status: Active)
+    
+    loop Continuous Graph Monitoring
+        Oracle->>Oracle: Compute GraphSAGE Sybil Risk Score
+    end
+
+    alt Sybil Risk Score <= 30 (Verified Human)
+        Oracle->>Contract: updateSybilScore(userAddr, score=15)
+        User->>ZK: Generate Groth16 Proof (sybilScore < 30)
+        ZK-->>User: Proof Verified (Anonymous dApp Login)
+    else Sybil Risk Score > 70 (High Risk Bot)
+        Oracle->>Contract: slash(userAddr, "Coordinated Bot Ring")
+        Contract->>Treasury: Transfer 0.01 ETH Staked Funds
+        Contract-->>Contract: Revoke Credential & Blacklist Wallet
+        Contract-->>User: Emit SybilSlashed Event
+    end

@@ -1,0 +1,32 @@
+flowchart TB
+    subgraph L1["LAYER 1: DATA & GRAPH PIPELINE"]
+        D1[Alchemy Web3 RPC / Eth Node API] --> DP[data/ingestion.py: Ingestion Engine]
+        DP --> GB[graph/builder.py: NetworkX Builder]
+        GB -->|Directed Weighted Graph| FE[features/extractor.py: Feature Extractor]
+        FE -->|12 Topological Features| CSV[data/processed/features.csv & graph.pkl]
+    end
+
+    subgraph L2["LAYER 2: GRAPH NEURAL NETWORK ENGINE"]
+        CSV --> GNN[models/gnn.py: PyTorch Geometric GraphSAGE]
+        GNN -->|3-Layer SAGEConv + BatchNorm| INF[Inference & Risk Scoring Engine]
+        INF -->|Wallet Risk Score 0-100| ORC[scripts/oracle_bridge.py: Web3 Oracle Bridge]
+    end
+
+    subgraph L3["LAYER 3: BLOCKCHAIN & ZK PRIVACY"]
+        ORC -->|Web3.py Transactions| SC[contracts/SybilNet.sol Smart Contract]
+        SC -->|Mint Credential / Stake 0.01 ETH| USER[Wallet User]
+        SC -->|Auto-Slash Malicious Rings >70| SLASH[Slashing Pool Treasury]
+        USER --> ZKP[zkp/circuits/sybil_credential.circom]
+        ZKP -->|Groth16 Proof <200k gas| ZKV[contracts/ZKVerifier.sol]
+    end
+
+    subgraph L4["LAYER 4: REAL-TIME MEMPOOL & MARKETPLACE"]
+        WS[WebSocket Pending Tx Listener] --> MP[mempool/monitor.py: Mempool Monitor]
+        MP -->|Pre-Confirmation Scoring <45ms| GNN
+        ZKV -->|Verified Identity| MKT[frontend/app: Next.js Marketplace Hub]
+    end
+
+    style L1 fill:#f9f9f9,stroke:#333,stroke-width:1px
+    style L2 fill:#edf2ff,stroke:#3366cc,stroke-width:1px
+    style L3 fill:#f0fff0,stroke:#009933,stroke-width:1px
+    style L4 fill:#fff0f5,stroke:#cc0066,stroke-width:1px
